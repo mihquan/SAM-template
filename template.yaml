@@ -1,0 +1,80 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS:Serverless-2016-10-31
+Desciption: True Profit Infrastructure
+
+Resources:
+  # 1 - Storage: DynamoDB
+  MerchantsTable:
+    Type: AWS::Serverless::SimpleTable
+    Properties:
+      PrimaryKey:
+        Name: MerchantId
+        Type: String
+
+  # 2 - Storage: S3 Bucket for Data Export
+  ExportBucket:
+    Type: AWS::S3::Bucket
+
+  # 3 - Messaging: SQS and Dead Letter Queue
+  DeadLetter:
+    Type: AWS::SQS::Queue
+    
+  IngestionQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt DeadLetter.Arn
+        maxReceiveCount: 3
+
+  # 4 - Notification: SNS Topic
+  SNSTopic:
+    Type: AWS::SNS::Topic
+
+  EmailSubscription:
+    Type: AWS::SNS::EmailSubscription
+    Properties:
+      TopicArn: !Ref SNSTopic
+      Protocol: email
+      Endpoint: #studen@email.com
+
+  # 5 - Compute: Lambda Function
+  # Ingest Function: recieve API data and pushes to SQS
+  IngestFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: app.lambda_handler
+      Runtime: python3.9
+      Events:
+        PostOrder:
+          Type: Api
+          Properties:
+            Path: /ingest
+            Method: post
+      Policies:
+        - SQSMessagePolicy:
+          QueueName: !GetAtt IngestionQueue.QueueName
+
+  # Worker Function: Consumes from SQS and writes to DynamoDB/S3 bucket
+  WorkerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: app.lambda_handler
+      Runtime: python3.9
+      Events:
+        SQSEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt IngestionQueue.Arn
+            BatchSize: 10
+      Policies:
+        - DynamoDBPolicy:
+          TableName: !GetAtt MerchantsTable
+        - S3Policy:
+          BucketName: !Ref
+        - SNSPolicy:
+          TopicName: !GetAtt SNSTopic.TopicName
+
+Outputs:
+  ApiEndpoint:
+    Desciption: API Gateway Endpoint URL
+    Value: !Sub
