@@ -1,80 +1,137 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Transform: AWS:Serverless-2016-10-31
-Desciption: True Profit Infrastructure
+Transform: AWS::Serverless-2016-10-31
+Description: True Profit MVP - Backend & Pipeline
+
+Globals:
+  Function:
+    Runtime: python3.9
+    Timeout: 30
+    MemorySize: 256
 
 Resources:
-  # 1 - Storage: DynamoDB
-  MerchantsTable:
+
+  ############################
+  # 1. DynamoDB Tables
+  ############################
+
+  TransactionsTable:
     Type: AWS::Serverless::SimpleTable
     Properties:
+      TableName: Transactions
       PrimaryKey:
-        Name: MerchantId
+        Name: transaction_id
         Type: String
+      BillingMode: PAY_PER_REQUEST
 
-  # 2 - Storage: S3 Bucket for Data Export
-  ExportBucket:
-    Type: AWS::S3::Bucket
+  DailyMetricsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: DailyMetrics
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: merchant_id
+          AttributeType: S
+        - AttributeName: date
+          AttributeType: S
+      KeySchema:
+        - AttributeName: merchant_id
+          KeyType: HASH
+        - AttributeName: date
+          KeyType: RANGE
 
-  # 3 - Messaging: SQS and Dead Letter Queue
-  DeadLetter:
+  ############################
+  # 2. SQS + DLQ
+  ############################
+
+  DeadLetterQueue:
     Type: AWS::SQS::Queue
-    
+
   IngestionQueue:
     Type: AWS::SQS::Queue
     Properties:
       RedrivePolicy:
-        deadLetterTargetArn: !GetAtt DeadLetter.Arn
+        deadLetterTargetArn: !GetAtt DeadLetterQueue.Arn
         maxReceiveCount: 3
 
-  # 4 - Notification: SNS Topic
-  SNSTopic:
+  ############################
+  # 3. S3 Export Bucket
+  ############################
+
+  ExportBucket:
+    Type: AWS::S3::Bucket
+
+  ############################
+  # 4. SNS (Demo / Alert)
+  ############################
+
+  AlertTopic:
     Type: AWS::SNS::Topic
 
   EmailSubscription:
-    Type: AWS::SNS::EmailSubscription
+    Type: AWS::SNS::Subscription
     Properties:
-      TopicArn: !Ref SNSTopic
+      TopicArn: !Ref AlertTopic
       Protocol: email
-      Endpoint: #studen@email.com
+      Endpoint: your_email@example.com
 
-  # 5 - Compute: Lambda Function
-  # Ingest Function: recieve API data and pushes to SQS
+  ############################
+  # 5. Ingest Lambda
+  ############################
+
   IngestFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: app.lambda_handler
-      Runtime: python3.9
+      Handler: ingest.handler
+      CodeUri: ingest/
+      Environment:
+        Variables:
+          QUEUE_URL: !Ref IngestionQueue
+      Policies:
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt IngestionQueue.QueueName
       Events:
-        PostOrder:
+        IngestApi:
           Type: Api
           Properties:
-            Path: /ingest
-            Method: post
-      Policies:
-        - SQSMessagePolicy:
-          QueueName: !GetAtt IngestionQueue.QueueName
+            Path: /ingest/transaction
+            Method: POST
 
-  # Worker Function: Consumes from SQS and writes to DynamoDB/S3 bucket
-  WorkerFunction:
+  ############################
+  # 6. Processor Lambda (CORE)
+  ############################
+
+  ProcessorFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: app.lambda_handler
-      Runtime: python3.9
+      Handler: processor.handler
+      CodeUri: processor/
+      Environment:
+        Variables:
+          TRANSACTIONS_TABLE: !Ref TransactionsTable
+          DAILY_METRICS_TABLE: !Ref DailyMetricsTable
+          EXPORT_BUCKET: !Ref ExportBucket
       Events:
-        SQSEvent:
+        SQSTrigger:
           Type: SQS
           Properties:
             Queue: !GetAtt IngestionQueue.Arn
             BatchSize: 10
       Policies:
-        - DynamoDBPolicy:
-          TableName: !GetAtt MerchantsTable
-        - S3Policy:
-          BucketName: !Ref
-        - SNSPolicy:
-          TopicName: !GetAtt SNSTopic.TopicName
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TransactionsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref DailyMetricsTable
+        - S3WritePolicy:
+            BucketName: !Ref ExportBucket
+        - SNSPublishMessagePolicy:
+            TopicName: !GetAtt AlertTopic.TopicName
 
 Outputs:
+
   ApiEndpoint:
-    Desciption: API Gateway Endpoint URL
-    Value: !Sub
+    Description: API Gateway endpoint
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/ingest/transaction"
+
+  IngestionQueueUrl:
+    Description: SQS Queue URL
+    Value: !Ref IngestionQueue
