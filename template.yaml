@@ -182,7 +182,11 @@ Resources:
 Outputs:
 
   ApiEndpoint:
-    Description: API Gateway endpoint
+    Description: API Gateway endpoint URL
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
+
+  IngestTransactionEndpoint:
+    Description: Ingest transaction endpoint URL
     Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/ingest/transaction"
 
   IngestionQueueUrl:
