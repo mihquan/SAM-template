@@ -23,11 +23,19 @@ Resources:
         Type: String
       BillingMode: PAY_PER_REQUEST
 
+  MerchantsTable:
+    Type: AWS::Serverless::SimpleTable
+    Properties:
+      TableName: Merchants
+      PrimaryKey:
+        Name: merchant_id
+        Type: String
+      BillingMode: PAY_PER_REQUEST
+
   DailyMetricsTable:
     Type: AWS::DynamoDB::Table
     Properties:
       TableName: DailyMetrics
-      BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
         - AttributeName: merchant_id
           AttributeType: S
@@ -38,9 +46,26 @@ Resources:
           KeyType: HASH
         - AttributeName: date
           KeyType: RANGE
+      BillingMode: PAY_PER_REQUEST
+
+  MarketingSpendTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: MarketingSpend
+      AttributeDefinitions:
+        - AttributeName: merchant_id
+          AttributeName: S
+        - AttributeName: spend_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: merchant_id
+          KeyType: HASH
+        - AttributeName: spend_id
+          KeyType: RANGE
+      BillingMode: PAY_PER_REQUEST
 
   ############################
-  # 2. SQS + DLQ
+  # 2. SQS + DLQ + CLoudWatch
   ############################
 
   DeadLetterQueue:
@@ -52,6 +77,22 @@ Resources:
       RedrivePolicy:
         deadLetterTargetArn: !GetAtt DeadLetterQueue.Arn
         maxReceiveCount: 3
+
+  DeadLetterQueueAlarm:
+    Type: AWS::CLoudWatch::Alarm
+    Properties:
+      Namespace: "AWS/SQS"
+      MetricName: "ApproximateNumberOfMessagesVisible"
+      Dimensions:
+        - Name: "QueueName"
+          Value: !GetAtt DeadLetterQueue.QueueName
+      Statistic: "Sum"
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 3
+      ComparisonOperator: "GreaterThanThreshold"
+      AlarmActions:
+        - !Ref AlertTopic
 
   ############################
   # 3. S3 Export Bucket
