@@ -15,12 +15,19 @@ Resources:
   ############################
 
   TransactionsTable:
-    Type: AWS::Serverless::SimpleTable
+    Type: AWS::DynamoDB::SimpleTable
     Properties:
       TableName: Transactions
-      PrimaryKey:
-        Name: transaction_id
-        Type: String
+      AttributeDefinitions:
+        - AttributeName: transaction_id
+          AttributeType: S
+        - AttributeName: date
+          AttributeType: S
+      KeySchema:
+        - AttributeName: transaction_id
+          KeyType: HASH
+        - AttributeName: date
+          KeyType: RANGE
       BillingMode: PAY_PER_REQUEST
 
   MerchantsTable:
