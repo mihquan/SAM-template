@@ -117,10 +117,15 @@ Resources:
             Queue: !GetAtt IngestionQueue.Arn
             BatchSize: 10
       Policies:
-        - DynamoDBCrudPolicy:
-            TableName: !Ref TransactionsTable
-        - DynamoDBCrudPolicy:
-            TableName: !Ref DailyMetricsTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:PutItem
+              Resource: !GetAtt TransactionsTable.Arn
+            - Effect: Allow
+              Action:
+               - dynamodb: UpdateItem
+              Resource: !GetAtt DailyMetricsTable.Arn
         - S3WritePolicy:
             BucketName: !Ref ExportBucket
         - SNSPublishMessagePolicy:
