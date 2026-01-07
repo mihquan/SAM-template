@@ -15,19 +15,15 @@ Resources:
   ############################
 
   TransactionsTable:
-    Type: AWS::DynamoDB::SimpleTable
+    Type: AWS::Serverless::SimpleTable
     Properties:
       TableName: Transactions
-      AttributeDefinitions:
-        - AttributeName: transaction_id
-          AttributeType: S
-        - AttributeName: date
-          AttributeType: S
-      KeySchema:
-        - AttributeName: transaction_id
-          KeyType: HASH
-        - AttributeName: date
-          KeyType: RANGE
+      PrimaryKey:
+        Name: transaction_id
+        Type: String
+      SortKey:
+        Name: date
+        Type: String
       BillingMode: PAY_PER_REQUEST
 
   MerchantsTable:
@@ -40,35 +36,27 @@ Resources:
       BillingMode: PAY_PER_REQUEST
 
   DailyMetricsTable:
-    Type: AWS::DynamoDB::Table
+    Type: AWS::Serverless::SimpleTable
     Properties:
       TableName: DailyMetrics
-      AttributeDefinitions:
-        - AttributeName: merchant_id
-          AttributeType: S
-        - AttributeName: date
-          AttributeType: S
-      KeySchema:
-        - AttributeName: merchant_id
-          KeyType: HASH
-        - AttributeName: date
-          KeyType: RANGE
+      PrimaryKey:
+        Name: merchant_id
+        Type: String
+      SortKey:
+        Name: date
+        Type: String
       BillingMode: PAY_PER_REQUEST
 
   MarketingSpendTable:
-    Type: AWS::DynamoDB::Table
+    Type: AWS::Serverless::SimpleTable
     Properties:
       TableName: MarketingSpend
-      AttributeDefinitions:
-        - AttributeName: merchant_id
-          AttributeName: S
-        - AttributeName: spend_id
-          AttributeType: S
-      KeySchema:
-        - AttributeName: merchant_id
-          KeyType: HASH
-        - AttributeName: spend_id
-          KeyType: RANGE
+      PrimaryKey:
+        Name: merchant_id
+        Type: String
+      SortKey:
+        Name: spend_id
+        Type: String
       BillingMode: PAY_PER_REQUEST
 
   ############################
@@ -86,7 +74,7 @@ Resources:
         maxReceiveCount: 3
 
   DeadLetterQueueAlarm:
-    Type: AWS::CLoudWatch::Alarm
+    Type: AWS::CloudWatch::Alarm
     Properties:
       Namespace: "AWS/SQS"
       MetricName: "ApproximateNumberOfMessagesVisible"
@@ -172,7 +160,7 @@ Resources:
               Resource: !GetAtt TransactionsTable.Arn
             - Effect: Allow
               Action:
-               - dynamodb: UpdateItem
+               - dynamodb:UpdateItem
               Resource: !GetAtt DailyMetricsTable.Arn
         - S3WritePolicy:
             BucketName: !Ref ExportBucket
