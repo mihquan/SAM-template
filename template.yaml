@@ -93,7 +93,7 @@ Resources:
       MetricName: "ApproximateNumberOfMessagesVisible"
       Dimensions:
         - Name: "QueueName"
-          Value: !Select [5, !Split ["/", !Ref DeadLetterQueue]]
+          Value: !GetAtt DeadLetterQueue.QueueName
       Statistic: "Sum"
       Period: 60
       EvaluationPeriods: 1
@@ -138,7 +138,7 @@ Resources:
           QUEUE_URL: !Ref IngestionQueue
       Policies:
         - SQSSendMessagePolicy:
-            QueueName: !Select [5, !Split ["/", !Ref IngestionQueue]]
+            QueueName: !GetAtt IngestionQueue.QueueName
       Events:
         IngestApi:
           Type: Api
@@ -178,11 +178,11 @@ Resources:
                - dynamodb:GetItem
               Resource: !GetAtt DailyMetricsTable.Arn
         - SQSPollerPolicy:
-            QueueName: !Select [5, !Split ["/", !Ref IngestionQueue]]
+            QueueName: !GetAtt IngestionQueue.QueueName
         - S3WritePolicy:
             BucketName: !Ref ExportBucket
         - SNSPublishMessagePolicy:
-            TopicName: !Ref AlertTopic.TopicName
+            TopicName: !GetAtt AlertTopic.TopicName
 
 
 Outputs:
