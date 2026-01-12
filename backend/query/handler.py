@@ -1,0 +1,24 @@
+import os
+import json
+import boto3
+
+dynamodb = boto3.resource("dynamodb")
+table = dynamodb.Table(os.environ["DAILY_METRICS_TABLE"])
+
+
+def lambda_handler(event, context):
+    params = event.get("queryStringParameters") or {}
+    merchant_id = params.get("merchant_id")
+
+    if not merchant_id:
+        return {"statusCode": 400, "body": "merchant_id is required"}
+
+    response = table.query(
+        KeyConditionExpression="merchant_id = :m",
+        ExpressionAttributeValues={":m": merchant_id},
+    )
+
+    return {
+        "statusCode": 200,
+        "body": json.dumps(response.get("Items", [])),
+    }

@@ -21,10 +21,7 @@ Resources:
       PrimaryKey:
         Name: transaction_id
         Type: String
-      SortKey:
-        Name: date
-        Type: String
-      BillingMode: PAY_PER_REQUEST
+      # BillingMode: PAY_PER_REQUEST
 
   MerchantsTable:
     Type: AWS::Serverless::SimpleTable
@@ -33,31 +30,39 @@ Resources:
       PrimaryKey:
         Name: merchant_id
         Type: String
-      BillingMode: PAY_PER_REQUEST
+      # BillingMode: PAY_PER_REQUEST
 
   DailyMetricsTable:
-    Type: AWS::Serverless::SimpleTable
+    Type: AWS::DynamoDB::Table
     Properties:
       TableName: DailyMetrics
-      PrimaryKey:
-        Name: merchant_id
-        Type: String
-      SortKey:
-        Name: date
-        Type: String
       BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: merchant_id
+          AttributeType: S
+        - AttributeName: date
+          AttributeType: S
+      KeySchema:
+        - AttributeName: merchant_id
+          KeyType: HASH
+        - AttributeName: date
+          KeyType: RANGE
 
   MarketingSpendTable:
-    Type: AWS::Serverless::SimpleTable
+    Type: AWS::DynamoDB::Table
     Properties:
       TableName: MarketingSpend
-      PrimaryKey:
-        Name: merchant_id
-        Type: String
-      SortKey:
-        Name: spend_id
-        Type: String
       BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+      - AttributeName: merchant_id
+        AttributeType: S
+      - AttributeName: date
+        AttributeType: S
+      KeySchema:
+      - AttributeName: merchant_id
+        KeyType: HASH
+      - AttributeName: date
+        KeyType: RANGE
 
   ############################
   # 2. SQS + DLQ + CLoudWatch
@@ -117,8 +122,8 @@ Resources:
   IngestFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: ingest.handler
-      CodeUri: ingest/
+      CodeUri: backend/ingest/
+      Handler: handler.lambda_handler
       Environment:
         Variables:
           QUEUE_URL: !Ref IngestionQueue
@@ -139,8 +144,8 @@ Resources:
   ProcessorFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: processor.handler
-      CodeUri: processor/
+      CodeUri: backend/processor
+      Handler: handler.lambda_handler
       Environment:
         Variables:
           TRANSACTIONS_TABLE: !Ref TransactionsTable
@@ -161,7 +166,10 @@ Resources:
             - Effect: Allow
               Action:
                - dynamodb:UpdateItem
+               - dynamodb:GetItem
               Resource: !GetAtt DailyMetricsTable.Arn
+        - SQSPollerPolicy:
+            QueueName: !GetAtt IngestionQueue.QueueName
         - S3WritePolicy:
             BucketName: !Ref ExportBucket
         - SNSPublishMessagePolicy:
