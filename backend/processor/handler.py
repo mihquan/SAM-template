@@ -1,6 +1,8 @@
 import json
 import os
 import logging
+from decimal import Decimal
+
 
 import boto3
 from botocore.exceptions import ClientError
@@ -54,13 +56,16 @@ def lambda_handler(event, context):
                 ADD total_revenue :r,
                     total_ad_spend :a,
                     total_fees :f,
-                    total_profit :p
+                    total_profit :p,
+                    transaction_count :c
             """,
             ExpressionAttributeValues={
-                ":r": tx["revenue"],
-                ":a": tx["ad_spend"],
-                ":f": tx["fees"],
-                ":p": profit,
+                ":r": Decimal(str(tx["revenue"])),
+                ":a": Decimal(str(tx["ad_spend"])),
+                ":f": Decimal(str(tx["fees"])),
+                ":p": Decimal(str(profit)),
+                ":c": Decimal(1),
+
             },
         )
 

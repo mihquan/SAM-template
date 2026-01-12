@@ -1,3 +1,5 @@
+
+
 def calculate_profit_and_margin(tx: dict) -> tuple[float, float]:
     revenue = tx["revenue"]
     cost = tx["cost"]

@@ -7,6 +7,8 @@ Globals:
     Runtime: python3.9
     Timeout: 30
     MemorySize: 256
+    Tags: {}
+
 
 Resources:
 
@@ -145,6 +147,25 @@ Resources:
           Properties:
             Path: /ingest/transaction
             Method: POST
+        
+
+  QueryMetricsFunction:
+  Type: AWS::Serverless::Function
+  Properties:
+    CodeUri: backend/query/
+    Handler: handler.lambda_handler
+    Environment:
+      Variables:
+        DAILY_METRICS_TABLE: !Ref DailyMetricsTable
+    Policies:
+      - DynamoDBReadPolicy:
+          TableName: !Ref DailyMetricsTable
+    Events:
+      GetMetrics:
+        Type: Api
+        Properties:
+          Path: /metrics
+          Method: GET
 
   ############################
   # 6. Processor Lambda (CORE)
