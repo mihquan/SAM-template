@@ -1,0 +1,183 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: True Profit MVP - Backend & Pipeline
+Globals:
+  Function:
+    Runtime: python3.9
+    Timeout: 30
+    MemorySize: 256
+Resources:
+  TransactionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: Transactions
+      PrimaryKey:
+        Name: transaction_id
+        Type: String
+  MerchantsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: Merchants
+      PrimaryKey:
+        Name: merchant_id
+        Type: String
+  DailyMetricsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: DailyMetrics
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+      - AttributeName: merchant_id
+        AttributeType: S
+      - AttributeName: date
+        AttributeType: S
+      KeySchema:
+      - AttributeName: merchant_id
+        KeyType: HASH
+      - AttributeName: date
+        KeyType: RANGE
+  MarketingSpendTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: MarketingSpend
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+      - AttributeName: merchant_id
+        AttributeType: S
+      - AttributeName: date
+        AttributeType: S
+      KeySchema:
+      - AttributeName: merchant_id
+        KeyType: HASH
+      - AttributeName: date
+        KeyType: RANGE
+  DeadLetterQueue:
+    Type: AWS::SQS::Queue
+  IngestionQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      RedrivePolicy:
+        deadLetterTargetArn:
+          Fn::GetAtt:
+          - DeadLetterQueue
+          - Arn
+        maxReceiveCount: 3
+  DeadLetterQueueAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      Namespace: AWS/SQS
+      MetricName: ApproximateNumberOfMessagesVisible
+      Dimensions:
+      - Name: QueueName
+        Value:
+          Fn::GetAtt:
+          - DeadLetterQueue
+          - QueueName
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 3
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+      - Ref: AlertTopic
+  ExportBucket:
+    Type: AWS::S3::Bucket
+  AlertTopic:
+    Type: AWS::SNS::Topic
+  EmailSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn:
+        Ref: AlertTopic
+      Protocol: email
+      Endpoint: your_email@example.com
+  IngestFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: IngestFunction
+      Handler: handler.lambda_handler
+      Environment:
+        Variables:
+          QUEUE_URL:
+            Ref: IngestionQueue
+      Policies:
+      - SQSSendMessagePolicy:
+          QueueName:
+            Fn::GetAtt:
+            - IngestionQueue
+            - QueueName
+      Events:
+        IngestApi:
+          Type: Api
+          Properties:
+            Path: /ingest/transaction
+            Method: POST
+    Metadata:
+      SamResourceId: IngestFunction
+  ProcessorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ProcessorFunction
+      Handler: handler.lambda_handler
+      Environment:
+        Variables:
+          TRANSACTIONS_TABLE:
+            Ref: TransactionsTable
+          DAILY_METRICS_TABLE:
+            Ref: DailyMetricsTable
+          EXPORT_BUCKET:
+            Ref: ExportBucket
+      Events:
+        SQSTrigger:
+          Type: SQS
+          Properties:
+            Queue:
+              Fn::GetAtt:
+              - IngestionQueue
+              - Arn
+            BatchSize: 10
+      Policies:
+      - Statement:
+        - Effect: Allow
+          Action:
+          - dynamodb:PutItem
+          Resource:
+            Fn::GetAtt:
+            - TransactionsTable
+            - Arn
+        - Effect: Allow
+          Action:
+          - dynamodb:UpdateItem
+          - dynamodb:GetItem
+          Resource:
+            Fn::GetAtt:
+            - DailyMetricsTable
+            - Arn
+      - SQSPollerPolicy:
+          QueueName:
+            Fn::GetAtt:
+            - IngestionQueue
+            - QueueName
+      - S3WritePolicy:
+          BucketName:
+            Ref: ExportBucket
+      - SNSPublishMessagePolicy:
+          TopicName:
+            Fn::GetAtt:
+            - AlertTopic
+            - TopicName
+    Metadata:
+      SamResourceId: ProcessorFunction
+Outputs:
+  ApiEndpoint:
+    Description: API Gateway endpoint URL
+    Value:
+      Fn::Sub: https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/
+  IngestTransactionEndpoint:
+    Description: Ingest transaction endpoint URL
+    Value:
+      Fn::Sub: https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/ingest/transaction
+  IngestionQueueUrl:
+    Description: SQS Queue URL
+    Value:
+      Ref: IngestionQueue

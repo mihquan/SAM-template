@@ -18,19 +18,27 @@ Resources:
     Type: AWS::DynamoDB::Table
     Properties:
       TableName: Transactions
-      PrimaryKey:
-        Name: transaction_id
-        Type: String
-      # BillingMode: PAY_PER_REQUEST
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: transaction_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: transaction_id
+          KeyType: HASH
+
 
   MerchantsTable:
     Type: AWS::DynamoDB::Table
     Properties:
       TableName: Merchants
-      PrimaryKey:
-        Name: merchant_id
-        Type: String
-      # BillingMode: PAY_PER_REQUEST
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: merchant_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: merchant_id
+          KeyType: HASH
+
 
   DailyMetricsTable:
     Type: AWS::DynamoDB::Table
@@ -85,7 +93,7 @@ Resources:
       MetricName: "ApproximateNumberOfMessagesVisible"
       Dimensions:
         - Name: "QueueName"
-          Value: !GetAtt DeadLetterQueue.QueueName
+          Value: !Select [5, !Split ["/", !Ref DeadLetterQueue]]
       Statistic: "Sum"
       Period: 60
       EvaluationPeriods: 1
@@ -93,6 +101,7 @@ Resources:
       ComparisonOperator: "GreaterThanThreshold"
       AlarmActions:
         - !Ref AlertTopic
+
 
   ############################
   # 3. S3 Export Bucket
@@ -113,7 +122,7 @@ Resources:
     Properties:
       TopicArn: !Ref AlertTopic
       Protocol: email
-      Endpoint: your_email@example.com
+      Endpoint: jasonais99@gmail.com
 
   ############################
   # 5. Ingest Lambda
@@ -129,7 +138,7 @@ Resources:
           QUEUE_URL: !Ref IngestionQueue
       Policies:
         - SQSSendMessagePolicy:
-            QueueName: !GetAtt IngestionQueue.QueueName
+            QueueName: !Select [5, !Split ["/", !Ref IngestionQueue]]
       Events:
         IngestApi:
           Type: Api
@@ -169,11 +178,12 @@ Resources:
                - dynamodb:GetItem
               Resource: !GetAtt DailyMetricsTable.Arn
         - SQSPollerPolicy:
-            QueueName: !GetAtt IngestionQueue.QueueName
+            QueueName: !Select [5, !Split ["/", !Ref IngestionQueue]]
         - S3WritePolicy:
             BucketName: !Ref ExportBucket
         - SNSPublishMessagePolicy:
-            TopicName: !GetAtt AlertTopic.TopicName
+            TopicName: !Ref AlertTopic.TopicName
+
 
 Outputs:
 
