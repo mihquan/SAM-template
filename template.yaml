@@ -15,7 +15,7 @@ Resources:
   ############################
 
   TransactionsTable:
-    Type: AWS::Serverless::SimpleTable
+    Type: AWS::DynamoDB::Table
     Properties:
       TableName: Transactions
       PrimaryKey:
@@ -24,7 +24,7 @@ Resources:
       # BillingMode: PAY_PER_REQUEST
 
   MerchantsTable:
-    Type: AWS::Serverless::SimpleTable
+    Type: AWS::DynamoDB::Table
     Properties:
       TableName: Merchants
       PrimaryKey:
