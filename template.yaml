@@ -133,12 +133,10 @@ Resources:
     Properties:
       CodeUri: backend/ingest/
       Handler: handler.lambda_handler
+      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/LabRole"
       Environment:
         Variables:
           QUEUE_URL: !Ref IngestionQueue
-      Policies:
-        - SQSSendMessagePolicy:
-            QueueName: !GetAtt IngestionQueue.QueueName
       Events:
         IngestApi:
           Type: Api
@@ -155,6 +153,7 @@ Resources:
     Properties:
       CodeUri: backend/processor
       Handler: handler.lambda_handler
+      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/LabRole"
       Environment:
         Variables:
           TRANSACTIONS_TABLE: !Ref TransactionsTable
@@ -166,24 +165,6 @@ Resources:
           Properties:
             Queue: !GetAtt IngestionQueue.Arn
             BatchSize: 10
-      Policies:
-        - Statement:
-            - Effect: Allow
-              Action:
-                - dynamodb:PutItem
-              Resource: !GetAtt TransactionsTable.Arn
-            - Effect: Allow
-              Action:
-               - dynamodb:UpdateItem
-               - dynamodb:GetItem
-              Resource: !GetAtt DailyMetricsTable.Arn
-        - SQSPollerPolicy:
-            QueueName: !GetAtt IngestionQueue.QueueName
-        - S3WritePolicy:
-            BucketName: !Ref ExportBucket
-        - SNSPublishMessagePolicy:
-            TopicName: !GetAtt AlertTopic.TopicName
-
 
 Outputs:
 
