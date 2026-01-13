@@ -17,9 +17,14 @@ Prepare your deployment artifacts and install dependencies:
 ```bash
 sam validate
 sam build
+```
 
-sam local start-api
+Deploy AWS SAM application for the first time:
+```bash
+sam deploy --guided --stack-name true-profit-mvp --region us-east-1 --capabilities CAPABILITY_IAM --confirm-changeset
+```
 
-Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:3000/ingest" -ContentType "application/json" -Body '{"merchant_id":"M123","order_id":"ORD-001","amount":150.00}'
-sam deploy --guided
+Invoke transaction function for verification:
+```bash
+Invoke-RestMethod -Method Post -Uri "<IngestionQueueUrl>" -ContentType "application/json" -Body '{"merchant_id":"M123","revenue":150.00,"ad_spend":10.00,"fees":2.50,"cost":80.00}'
 ```
