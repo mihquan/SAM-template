@@ -8,6 +8,9 @@ import boto3
 sqs = boto3.client("sqs")
 QUEUE_URL = os.environ["QUEUE_URL"]
 
+IS_LOCAL = os.environ.get("AWS_SAM_LOCAL") == "true"
+
+
 REQUIRED_FIELDS = ["merchant_id", "revenue", "ad_spend", "fees", "cost"]
 
 
@@ -35,13 +38,17 @@ def lambda_handler(event, context):
     }
 
     # Push to SQS
-    sqs.send_message(
-        QueueUrl=QUEUE_URL,
-        MessageBody=json.dumps(transaction),
-    )
+    if not IS_LOCAL:
+        sqs.send_message(
+            QueueUrl=os.environ["QUEUE_URL"],
+            MessageBody=json.dumps(transaction)
+        )
+    else:
+        print("LOCAL MODE: Skipping SQS send")
 
     return {
         "statusCode": 200,
+        "headers": {"Content-Type": "application/json"},
         "body": json.dumps(
             {
                 "message": "Transaction ingested",

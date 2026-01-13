@@ -11,16 +11,24 @@ Resources:
     Type: AWS::DynamoDB::Table
     Properties:
       TableName: Transactions
-      PrimaryKey:
-        Name: transaction_id
-        Type: String
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+      - AttributeName: transaction_id
+        AttributeType: S
+      KeySchema:
+      - AttributeName: transaction_id
+        KeyType: HASH
   MerchantsTable:
     Type: AWS::DynamoDB::Table
     Properties:
       TableName: Merchants
-      PrimaryKey:
-        Name: merchant_id
-        Type: String
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+      - AttributeName: merchant_id
+        AttributeType: S
+      KeySchema:
+      - AttributeName: merchant_id
+        KeyType: HASH
   DailyMetricsTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -90,7 +98,7 @@ Resources:
       TopicArn:
         Ref: AlertTopic
       Protocol: email
-      Endpoint: your_email@example.com
+      Endpoint: jasonais99@gmail.com
   IngestFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -114,6 +122,28 @@ Resources:
             Method: POST
     Metadata:
       SamResourceId: IngestFunction
+  QueryMetricsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: QueryMetricsFunction
+      Handler: handler.lambda_handler
+      Runtime: python3.9
+      Environment:
+        Variables:
+          DAILY_METRICS_TABLE:
+            Ref: DailyMetricsTable
+      Policies:
+      - DynamoDBReadPolicy:
+          TableName:
+            Ref: DailyMetricsTable
+      Events:
+        GetMetrics:
+          Type: Api
+          Properties:
+            Path: /metrics
+            Method: GET
+    Metadata:
+      SamResourceId: QueryMetricsFunction
   ProcessorFunction:
     Type: AWS::Serverless::Function
     Properties:
