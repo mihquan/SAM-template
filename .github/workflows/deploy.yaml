@@ -1,0 +1,35 @@
+name: Deploy
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    run-on: ubuntu-latest
+    
+  steps:
+    - name: Checkout
+      uses: aws/checkout@v4
+
+    - name: Install SAM CLI
+      uses: aws-actions/setup-sam@v2
+
+    - name: AWS Creadentials configure
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-1
+        aws-output-format: json
+
+    - name: Run SAM build
+      run: sam build --template-file tempalte.yaml
+
+    - name: Run SAM deploy
+      run: |
+        sam deploy \
+          --config-file samconfig.toml \
+          --no-confirm-changeset \
+          --no-fail-on-empty-changeset
