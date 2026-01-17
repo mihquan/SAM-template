@@ -9,25 +9,25 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     
-  steps:
-    - name: Checkout
-      uses: aws/checkout@v4
+    steps:
+      - name: Checkout
+        uses: aws/checkout@v4
 
-    - name: Install SAM CLI
-      uses: aws-actions/setup-sam@v2
+      - name: Install SAM CLI
+        uses: aws-actions/setup-sam@v2
 
-    - name: AWS Creadentials configure
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        aws-to-assume: arn:aws:iam::748609116303:role/LabRole
-        aws-region: us-east-1
+      - name: AWS Creadentials configure
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-to-assume: arn:aws:iam::748609116303:role/LabRole
+          aws-region: us-east-1
 
-    - name: Run SAM build
-      run: sam build --template-file tempalte.yaml
+      - name: Run SAM build
+        run: sam build --template-file tempalte.yaml
 
-    - name: Run SAM deploy
-      run: |
-        sam deploy \
-          --config-file samconfig.toml \
-          --no-confirm-changeset \
-          --no-fail-on-empty-changeset
+      - name: Run SAM deploy
+        run: |
+          sam deploy \
+            --config-file samconfig.toml \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset
