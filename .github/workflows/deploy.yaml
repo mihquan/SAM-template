@@ -19,10 +19,8 @@ jobs:
     - name: AWS Creadentials configure
       uses: aws-actions/configure-aws-credentials@v4
       with:
-        aws-access-key-id: ${{ AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ AWS_SECRET_ACCESS_KEY }}
+        aws-to-assume: arn:aws:iam::748609116303:role/LabRole
         aws-region: us-east-1
-        aws-output-format: json
 
     - name: Run SAM build
       run: sam build --template-file tempalte.yaml
