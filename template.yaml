@@ -124,7 +124,7 @@ Resources:
     Properties:
       TopicArn: !Ref AlertTopic
       Protocol: email
-      Endpoint: jasonais99@gmail.com
+      Endpoint: trongtbh145@gmail.com
 
   ############################
   # 5. Ingest Lambda
@@ -148,22 +148,23 @@ Resources:
         
 
   QueryMetricsFunction:
-  Type: AWS::Serverless::Function
-  Properties:
-    CodeUri: backend/query/
-    Handler: handler.lambda_handler
-    Environment:
-      Variables:
-        DAILY_METRICS_TABLE: !Ref DailyMetricsTable
-    Policies:
-      - DynamoDBReadPolicy:
-          TableName: !Ref DailyMetricsTable
-    Events:
-      GetMetrics:
-        Type: Api
-        Properties:
-          Path: /metrics
-          Method: GET
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/query/
+      Handler: handler.lambda_handler
+      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/LabRole"
+      Environment:
+        Variables:
+          DAILY_METRICS_TABLE: !Ref DailyMetricsTable
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref DailyMetricsTable
+      Events:
+        GetMetrics:
+          Type: Api   
+          Properties:
+            Path: /metrics
+            Method: GET
 
   ############################
   # 6. Processor Lambda (CORE)
@@ -186,6 +187,28 @@ Resources:
           Properties:
             Queue: !GetAtt IngestionQueue.Arn
             BatchSize: 10
+  
+  ExportFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/export/
+      Handler: handler.handler  # Lưu ý: file tên là handler.py, hàm tên là handler
+      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/LabRole"
+      Environment:
+        Variables:
+          DAILY_METRICS_TABLE: !Ref DailyMetricsTable
+          EXPORT_BUCKET: !Ref ExportBucket
+      Events:
+        ExportApi:
+          Type: Api
+          Properties:
+            Path: /export
+            Method: POST
+        ScheduledExport:
+          Type: Schedule
+          Properties:
+            Schedule: rate(5 minutes)
+            Enabled: true
 
 Outputs:
 

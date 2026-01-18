@@ -6,6 +6,7 @@ Globals:
     Runtime: python3.9
     Timeout: 30
     MemorySize: 256
+    Tags: {}
 Resources:
   TransactionsTable:
     Type: AWS::DynamoDB::Table
@@ -98,22 +99,18 @@ Resources:
       TopicArn:
         Ref: AlertTopic
       Protocol: email
-      Endpoint: jasonais99@gmail.com
+      Endpoint: trongtbh145@gmail.com
   IngestFunction:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: IngestFunction
       Handler: handler.lambda_handler
+      Role:
+        Fn::Sub: arn:aws:iam::${AWS::AccountId}:role/LabRole
       Environment:
         Variables:
           QUEUE_URL:
             Ref: IngestionQueue
-      Policies:
-      - SQSSendMessagePolicy:
-          QueueName:
-            Fn::GetAtt:
-            - IngestionQueue
-            - QueueName
       Events:
         IngestApi:
           Type: Api
@@ -127,7 +124,8 @@ Resources:
     Properties:
       CodeUri: QueryMetricsFunction
       Handler: handler.lambda_handler
-      Runtime: python3.9
+      Role:
+        Fn::Sub: arn:aws:iam::${AWS::AccountId}:role/LabRole
       Environment:
         Variables:
           DAILY_METRICS_TABLE:
@@ -149,6 +147,8 @@ Resources:
     Properties:
       CodeUri: ProcessorFunction
       Handler: handler.lambda_handler
+      Role:
+        Fn::Sub: arn:aws:iam::${AWS::AccountId}:role/LabRole
       Environment:
         Variables:
           TRANSACTIONS_TABLE:
@@ -166,38 +166,34 @@ Resources:
               - IngestionQueue
               - Arn
             BatchSize: 10
-      Policies:
-      - Statement:
-        - Effect: Allow
-          Action:
-          - dynamodb:PutItem
-          Resource:
-            Fn::GetAtt:
-            - TransactionsTable
-            - Arn
-        - Effect: Allow
-          Action:
-          - dynamodb:UpdateItem
-          - dynamodb:GetItem
-          Resource:
-            Fn::GetAtt:
-            - DailyMetricsTable
-            - Arn
-      - SQSPollerPolicy:
-          QueueName:
-            Fn::GetAtt:
-            - IngestionQueue
-            - QueueName
-      - S3WritePolicy:
-          BucketName:
-            Ref: ExportBucket
-      - SNSPublishMessagePolicy:
-          TopicName:
-            Fn::GetAtt:
-            - AlertTopic
-            - TopicName
     Metadata:
       SamResourceId: ProcessorFunction
+  ExportFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ExportFunction
+      Handler: handler.handler
+      Role:
+        Fn::Sub: arn:aws:iam::${AWS::AccountId}:role/LabRole
+      Environment:
+        Variables:
+          DAILY_METRICS_TABLE:
+            Ref: DailyMetricsTable
+          EXPORT_BUCKET:
+            Ref: ExportBucket
+      Events:
+        ExportApi:
+          Type: Api
+          Properties:
+            Path: /export
+            Method: POST
+        ScheduledExport:
+          Type: Schedule
+          Properties:
+            Schedule: rate(5 minutes)
+            Enabled: true
+    Metadata:
+      SamResourceId: ExportFunction
 Outputs:
   ApiEndpoint:
     Description: API Gateway endpoint URL
