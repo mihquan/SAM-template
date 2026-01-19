@@ -4,7 +4,7 @@ import io
 import boto3
 import json
 from datetime import datetime
-from decimal import Decimal # Import thêm để check type
+from decimal import Decimal  # Import additionally to check type
 
 dynamodb = boto3.resource("dynamodb")
 s3 = boto3.client("s3")
@@ -44,7 +44,7 @@ def handler(event, context):
             row = {}
             for k in CSV_FIELDS:
                 val = it.get(k, "")
-                # Ép kiểu Decimal về float để CSV nhìn đẹp hơn
+                # Convert Decimal to float so the CSV looks nicer
                 if isinstance(val, Decimal):
                     row[k] = float(val)
                 else:

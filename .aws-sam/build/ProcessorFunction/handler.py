@@ -12,7 +12,7 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 dynamodb = boto3.resource("dynamodb")
-cloudwatch = boto3.client("cloudwatch") # <--- 1. Khởi tạo Client (Đã có)
+cloudwatch = boto3.client("cloudwatch")
 
 TRANSACTIONS_TABLE = os.environ["TRANSACTIONS_TABLE"]
 DAILY_METRICS_TABLE = os.environ["DAILY_METRICS_TABLE"]
@@ -71,35 +71,34 @@ def lambda_handler(event, context):
             )
 
             # ======================================================
-            # 4️⃣ PUSH METRICS TO CLOUDWATCH (PHẦN BẠN CÒN THIẾU)
+            # 4️⃣ PUSH METRICS TO CLOUDWATCH (ĐÃ SỬA)
             # ======================================================
             try:
                 cloudwatch.put_metric_data(
-                    Namespace='TrueProfit/Metrics', # Tên không gian chứa metrics
+                    Namespace='TrueProfit/Metrics',
                     MetricData=[
                         {
                             'MetricName': 'Profit',
-                            'Dimensions': [{'Name': 'MerchantId', 'Value': merchant_id}],
-                            'Value': float(profit), # CloudWatch cần float, không nhận Decimal
+                            'Dimensions': [], 
+                            'Value': float(profit),
                             'Unit': 'Count' 
                         },
                         {
                             'MetricName': 'Revenue',
-                            'Dimensions': [{'Name': 'MerchantId', 'Value': merchant_id}],
+                            'Dimensions': [], 
                             'Value': float(tx["revenue"]),
                             'Unit': 'Count'
                         },
                          {
                             'MetricName': 'AdSpend',
-                            'Dimensions': [{'Name': 'MerchantId', 'Value': merchant_id}],
+                            'Dimensions': [], 
                             'Value': float(tx["ad_spend"]),
                             'Unit': 'Count'
                         }
                     ]
                 )
-                logger.info(f"✅ Pushed metrics to CloudWatch for {transaction_id}")
+                logger.info(f"✅ Pushed GLOBAL metrics to CloudWatch for {transaction_id}")
             except Exception as e:
-                # Nếu lỗi bắn metrics, chỉ log lại, ĐỪNG làm fail cả function (để tránh retry SQS)
                 logger.error(f"⚠️ Failed to push metrics: {str(e)}")
             
             # ======================================================
@@ -108,5 +107,4 @@ def lambda_handler(event, context):
             
         except Exception as e:
             logger.error(f"Error processing record: {str(e)}")
-            # Ở môi trường Prod, chỗ này nên gửi vào Dead Letter Queue (DLQ)
             continue

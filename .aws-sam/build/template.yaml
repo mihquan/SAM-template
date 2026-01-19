@@ -7,6 +7,11 @@ Globals:
     Timeout: 30
     MemorySize: 256
     Tags: {}
+  Api:
+    Cors:
+      AllowMethods: '''GET,POST,OPTIONS'''
+      AllowHeaders: '''content-type'''
+      AllowOrigin: '''*'''
 Resources:
   TransactionsTable:
     Type: AWS::DynamoDB::Table
@@ -87,6 +92,20 @@ Resources:
       EvaluationPeriods: 1
       Threshold: 3
       ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+      - Ref: AlertTopic
+  HighProfitAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Profit is higher than normal (> 120)
+      MetricName: Profit
+      Namespace: TrueProfit/Metrics
+      ComparisonOperator: GreaterThanThreshold
+      Threshold: 120
+      EvaluationPeriods: 1
+      Period: 60
+      Statistic: Sum
+      TreatMissingData: notBreaching
       AlarmActions:
       - Ref: AlertTopic
   ExportBucket:
@@ -194,6 +213,28 @@ Resources:
             Enabled: true
     Metadata:
       SamResourceId: ExportFunction
+  GetStatusFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: GetStatusFunction
+      Handler: handler.lambda_handler
+      Runtime: python3.9
+      Role:
+        Fn::Sub: arn:aws:iam::${AWS::AccountId}:role/LabRole
+      Policies:
+      - CloudWatchReadOnlyAccess
+      Environment:
+        Variables:
+          ALARM_NAME:
+            Ref: HighProfitAlarm
+      Events:
+        GetStatusApi:
+          Type: Api
+          Properties:
+            Path: /anomaly/status
+            Method: GET
+    Metadata:
+      SamResourceId: GetStatusFunction
 Outputs:
   ApiEndpoint:
     Description: API Gateway endpoint URL

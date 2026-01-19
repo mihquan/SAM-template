@@ -10,20 +10,33 @@ QUEUE_URL = os.environ["QUEUE_URL"]
 
 IS_LOCAL = os.environ.get("AWS_SAM_LOCAL") == "true"
 
-
 REQUIRED_FIELDS = ["merchant_id", "revenue", "ad_spend", "fees", "cost"]
 
+# Declare shared headers so we don't have to copy-paste many times
+CORS_HEADERS = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Methods": "OPTIONS,POST,GET"
+}
 
 def lambda_handler(event, context):
     try:
         body = json.loads(event["body"])
     except Exception:
-        return {"statusCode": 400, "body": "Invalid JSON"}
+        return {
+            "statusCode": 400, 
+            "headers": CORS_HEADERS, # headers
+            "body": "Invalid JSON"
+        }
 
     # Validate payload
     for field in REQUIRED_FIELDS:
         if field not in body:
-            return {"statusCode": 400, "body": f"Missing field: {field}"}
+            return {
+                "statusCode": 400, 
+                "headers": CORS_HEADERS, #  headers
+                "body": f"Missing field: {field}"
+            }
 
     # Enrich data
     transaction = {
@@ -48,11 +61,9 @@ def lambda_handler(event, context):
 
     return {
         "statusCode": 200,
-        "headers": {"Content-Type": "application/json"},
-        "body": json.dumps(
-            {
-                "message": "Transaction ingested",
-                "transaction_id": transaction["transaction_id"],
-            }
-        ),
+        "headers": CORS_HEADERS, # Dùng biến đã khai báo
+        "body": json.dumps({
+            "message": "Transaction received successfully",
+            "id": transaction["transaction_id"]  # FIXED: Read from the transaction dict
+        })
     }

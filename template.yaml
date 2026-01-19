@@ -8,7 +8,11 @@ Globals:
     Timeout: 30
     MemorySize: 256
     Tags: {}
-
+  Api:
+    Cors:
+      AllowMethods: "'GET,POST,OPTIONS'"
+      AllowHeaders: "'content-type'"
+      AllowOrigin: "'*'"
 
 Resources:
 
@@ -28,7 +32,6 @@ Resources:
         - AttributeName: transaction_id
           KeyType: HASH
 
-
   MerchantsTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -40,7 +43,6 @@ Resources:
       KeySchema:
         - AttributeName: merchant_id
           KeyType: HASH
-
 
   DailyMetricsTable:
     Type: AWS::DynamoDB::Table
@@ -75,7 +77,7 @@ Resources:
         KeyType: RANGE
 
   ############################
-  # 2. SQS + DLQ + CLoudWatch
+  # 2. SQS + DLQ + CloudWatch Alarms
   ############################
 
   DeadLetterQueue:
@@ -88,6 +90,7 @@ Resources:
         deadLetterTargetArn: !GetAtt DeadLetterQueue.Arn
         maxReceiveCount: 3
 
+  # Alarm 1: Alarm when the dead-letter queue has visible messages (system error)
   DeadLetterQueueAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
@@ -104,6 +107,22 @@ Resources:
       AlarmActions:
         - !Ref AlertTopic
 
+  HighProfitAlarm: 
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: "Profit is higher than normal (> 120)"
+      MetricName: Profit
+      Namespace: TrueProfit/Metrics
+      # Alarm when GREATER THAN the threshold
+      ComparisonOperator: GreaterThanThreshold 
+      Threshold: 120
+      EvaluationPeriods: 1
+      Period: 60
+      Statistic: Sum
+      TreatMissingData: notBreaching
+      AlarmActions:
+        # Send email when alarming
+        - !Ref AlertTopic 
 
   ############################
   # 3. S3 Export Bucket
@@ -113,7 +132,7 @@ Resources:
     Type: AWS::S3::Bucket
 
   ############################
-  # 4. SNS (Demo / Alert)
+  # 4. SNS (Alert Email)
   ############################
 
   AlertTopic:
@@ -127,7 +146,7 @@ Resources:
       Endpoint: trongtbh145@gmail.com
 
   ############################
-  # 5. Ingest Lambda
+  # 5. Functions
   ############################
 
   IngestFunction:
@@ -145,7 +164,6 @@ Resources:
           Properties:
             Path: /ingest/transaction
             Method: POST
-        
 
   QueryMetricsFunction:
     Type: AWS::Serverless::Function
@@ -161,14 +179,10 @@ Resources:
             TableName: !Ref DailyMetricsTable
       Events:
         GetMetrics:
-          Type: Api   
+          Type: Api    
           Properties:
             Path: /metrics
             Method: GET
-
-  ############################
-  # 6. Processor Lambda (CORE)
-  ############################
 
   ProcessorFunction:
     Type: AWS::Serverless::Function
@@ -187,12 +201,12 @@ Resources:
           Properties:
             Queue: !GetAtt IngestionQueue.Arn
             BatchSize: 10
-  
+
   ExportFunction:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: backend/export/
-      Handler: handler.handler  # Lưu ý: file tên là handler.py, hàm tên là handler
+      Handler: handler.handler 
       Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/LabRole"
       Environment:
         Variables:
@@ -209,6 +223,26 @@ Resources:
           Properties:
             Schedule: rate(5 minutes)
             Enabled: true
+
+  GetStatusFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/status/
+      Handler: handler.lambda_handler
+      Runtime: python3.9
+      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/LabRole"
+      Policies:
+        - CloudWatchReadOnlyAccess  # Quyền đọc Alarm
+      Environment:
+        Variables:
+          # Tự động lấy tên Alarm đã tạo ở trên
+          ALARM_NAME: !Ref HighProfitAlarm
+      Events:
+        GetStatusApi:
+          Type: Api
+          Properties:
+            Path: /anomaly/status
+            Method: GET
 
 Outputs:
 
