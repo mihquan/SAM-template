@@ -49,7 +49,7 @@ After a successful build and deployment, the SAM CLI will output an API Endpoint
 Invoke-RestMethod -Method Post \
 -Uri "<IngestionQueueUrl>" \
 -ContentType "application/json" \
--Body '{"merchant_id":"M123","revenue":150.00,"ad_spend":10.00,"fees":2.50,"cost":80.00}'
+-Body '{"merchant_id":"M123","revenue":150.00,"ad_spend":10.00,"fees":2.50,"cost":90.00}'
 ```
 
 Copy the API Gateway endpoint URL and paste to TrueProfit dashboard website to sync the frontend with cloud backend.
