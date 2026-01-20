@@ -28,3 +28,5 @@ Invoke transaction function for verification:
 ```bash
 Invoke-RestMethod -Method Post -Uri "<IngestionQueueUrl>" -ContentType "application/json" -Body '{"merchant_id":"M123","revenue":150.00,"ad_spend":10.00,"fees":2.50,"cost":80.00}'
 ```
+
+test GitHub Actions pipeline
