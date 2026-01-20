@@ -40,7 +40,7 @@ def lambda_handler(event, context):
 
     # Enrich data
     transaction = {
-        "transaction_id": str(uuid.uuid4()),
+        "transaction_id": body["transaction_id"],
         "merchant_id": body["merchant_id"],
         "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
         "created_at": datetime.now(timezone.utc).isoformat(),

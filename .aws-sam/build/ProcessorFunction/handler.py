@@ -32,9 +32,14 @@ def lambda_handler(event, context):
             try:
                 transactions_table.put_item(
                     Item={
-                        "transaction_id": transaction_id,
-                        "merchant_id": merchant_id,
+                        "transaction_id": tx["transaction_id"],   # TXN_7526
+                        "merchant_id": tx["merchant_id"],
                         "date": tx["date"],
+                        "created_at": tx.get("created_at"),
+                        "revenue": Decimal(str(tx["revenue"])),
+                        "cost": Decimal(str(tx["cost"])),
+                        "fees": Decimal(str(tx["fees"])),
+                        "ad_spend": Decimal(str(tx["ad_spend"])),
                     },
                     ConditionExpression="attribute_not_exists(transaction_id)",
                 )
