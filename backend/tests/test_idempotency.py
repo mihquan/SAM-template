@@ -1,9 +1,6 @@
 from unittest.mock import MagicMock
 from botocore.exceptions import ClientError
 
-from processor.handler import calculate_profit_and_margin
-
-
 def test_duplicate_transaction_skipped():
     # giả lập DynamoDB conditional failure
     error_response = {
