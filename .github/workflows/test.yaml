@@ -25,6 +25,8 @@ jobs:
           pip install pytest boto3
 
       - name: Run unit tests
+        env:
+          PYTHONPATH: ${{ github.workspace }}/backend
         run: pytest -q backend/tests
 
       - name: Setup SAM CLI
